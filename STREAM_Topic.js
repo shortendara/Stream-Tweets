@@ -31,9 +31,13 @@ function StreamTweets(term){
 	twitter.stream('statuses/filter', {track: term}, function(stream) {
 		stream.on('data', function(event) {
 			if(event.coordinates == null){
-				ParseTweet(event);
+				//ParseTweet(event);
+				console.log(event.text);
+				console.log(event.user.location)
 			}else{
 				/*Write tweet to the database*/
+				console.log(event.text)
+				console.log(event.coordinates)
 			}
 		});
 
@@ -61,7 +65,9 @@ function ParseTweet(tweet){
  *
  *	Return: "Returns required Tweets in JSON format"
  */
-
 app.get('/tweets/stream', function(req, res){
-	res.send('hello world')
+	console.log(req.query.id)
+	StreamTweets(req.query.id);
 });
+
+app.listen(3000);
