@@ -10,6 +10,7 @@ var app = new express();
 var credentials = require('./twitter_credentials.js');
 // Connection URL 
 var url = 'mongodb://localhost:27017/myproject';
+var amqp = require('amqplib/callback_api')
 
 //Credentials for twitter API access
 twitter = new twit({
@@ -28,16 +29,11 @@ twitter = new twit({
  *  Paramaters: {term} is the hashtag or sentence to query API with.
  */
 function StreamTweets(term){
+	var stream_count = 0;
 	twitter.stream('statuses/filter', {track: term}, function(stream) {
 		stream.on('data', function(event) {
 			if(event.coordinates == null){
-				//ParseTweet(event);
-				console.log(event.text);
-				console.log(event.user.location)
-			}else{
-				/*Write tweet to the database*/
-				console.log(event.text)
-				console.log(event.coordinates)
+				ParseTweet(event);
 			}
 		});
 
@@ -47,14 +43,24 @@ function StreamTweets(term){
 	});
 }
 
+/**
+ *
+ * Function to send tweets with no coordinates to seperate service using RabbitMQ
+ * 
+ */
 
-function ParseTweet(tweet){
-	/**
-		TODO:
-		- Create Rabbit MQ connection
-		- Send tweet to seperate service to try and locate tweet
-	 */
-	
+function QueueTweet(tweet){
+	amqp.connect('amqp://localhost:5672', function(err, conn) {
+  		conn.createChannel(function(err, ch) {
+		    var q = 'tweet_queue';
+
+		    ch.assertQueue(q, {durable: false});
+		    // Note: on Node 6 Buffer.from(msg) should be used
+		    ch.sendToQueue(q, new Buffer(tweet));
+		    console.log(" [x] Sent %s", tweet);
+  		});
+  		setTimeout(function() { conn.close(); process.exit(0) }, 500);
+	});
 }
 /**
  *
@@ -66,7 +72,6 @@ function ParseTweet(tweet){
  *	Return: "Returns required Tweets in JSON format"
  */
 app.get('/tweets/stream', function(req, res){
-	console.log(req.query.id)
 	StreamTweets(req.query.id);
 });
 
